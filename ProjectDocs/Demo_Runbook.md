@@ -23,7 +23,7 @@ Demonstrate sprint-by-sprint delivery by checking out a sprint tag/branch and ru
 3) Start frontend:
    - `cd frontend`
    - `npm run dev`
-4) Open `http://localhost:3000`
+4) Open `http://localhost:3002`
 
 ## Stop Servers
 - Backend: press `Ctrl+C` in the backend terminal.
@@ -34,6 +34,20 @@ Demonstrate sprint-by-sprint delivery by checking out a sprint tag/branch and ru
 - Show the sprint scope and requirements.
 - Run Requirement Analyst -> Test Planner -> Test Case Developer.
 - Show execution output and traceability.
+
+## Performance and Security (Framework)
+- Performance and security tests are maintained in the GoldenAutomationFramework (not standalone).
+- k6 and OWASP ZAP scripts live under `GoldenAutomationFramework/performance` and `GoldenAutomationFramework/security`.
+- Reports are generated in `GoldenAutomationFramework/reports/perf` and `GoldenAutomationFramework/reports/security`.
+- Runbook: `GoldenAutomationFramework/runbooks/Perf_Security_Runbook.md`.
+### How to run (PowerShell)
+```
+pwsh GoldenAutomationFramework/performance/run_k6.ps1
+pwsh GoldenAutomationFramework/security/zap_baseline.ps1 -TargetUrl http://localhost:3002
+```
+### Reports land in
+- `GoldenAutomationFramework/reports/perf/`
+- `GoldenAutomationFramework/reports/security/`
 
 ## Tips
 - Keep sprint branches immutable after tagging.
