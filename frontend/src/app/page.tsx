@@ -18,8 +18,20 @@ type Member = {
   state: string;
   zip_code: string;
   status: string;
+  identity_status: string;
+  identity_attempts: number;
+  identity_last_checked?: string | null;
+  identity_notes?: string | null;
   created_at: string;
   updated_at: string;
+};
+
+type IdentityAudit = {
+  id: string;
+  member_id: string;
+  result: string;
+  reason: string;
+  created_at: string;
 };
 
 type MemberForm = {
@@ -57,6 +69,9 @@ export default function Home() {
   const [maskedSSN, setMaskedSSN] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isCheckingIdentity, setIsCheckingIdentity] = useState(false);
+  const [identityAudits, setIdentityAudits] = useState<IdentityAudit[]>([]);
+  const [identityMessage, setIdentityMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const selectedMember = useMemo(
@@ -79,9 +94,29 @@ export default function Home() {
     }
   };
 
+  const loadIdentityAudit = async (memberId: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/members/${memberId}/identity-audit`);
+      if (!res.ok) throw new Error("Failed to load identity audit");
+      const data = (await res.json()) as IdentityAudit[];
+      setIdentityAudits(data);
+    } catch (err) {
+      setIdentityAudits([]);
+      setError(String(err));
+    }
+  };
+
   useEffect(() => {
     loadMembers();
   }, []);
+
+  useEffect(() => {
+    if (selectedId) {
+      loadIdentityAudit(selectedId);
+    } else {
+      setIdentityAudits([]);
+    }
+  }, [selectedId]);
 
   const handleSelect = (member: Member) => {
     setSelectedId(member.id);
@@ -99,6 +134,7 @@ export default function Home() {
       zip_code: member.zip_code,
     });
     setMaskedSSN(member.masked_ssn);
+    setIdentityMessage(null);
   };
 
   const handleChange = (key: keyof MemberForm, value: string) => {
@@ -109,6 +145,7 @@ export default function Home() {
     setSelectedId(null);
     setForm(emptyForm);
     setMaskedSSN("");
+    setIdentityMessage(null);
   };
 
   const handleSave = async () => {
@@ -161,6 +198,28 @@ export default function Home() {
       setError(String(err));
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleIdentityCheck = async () => {
+    if (!selectedMember) return;
+    const memberId = selectedMember.id;
+    setIsCheckingIdentity(true);
+    setError(null);
+    setIdentityMessage(null);
+    try {
+      const res = await fetch(`${API_BASE}/members/${memberId}/identity-check`, {
+        method: "POST",
+      });
+      if (!res.ok) throw new Error("Identity check failed");
+      const data = (await res.json()) as { status: string; attempts: number; reason: string };
+      setIdentityMessage(`${data.status}: ${data.reason} (attempts: ${data.attempts})`);
+      await loadMembers();
+      await loadIdentityAudit(memberId);
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setIsCheckingIdentity(false);
     }
   };
 
@@ -239,6 +298,66 @@ export default function Home() {
               <div className="text-xs text-[var(--accent)]">Masked SSN on file: {maskedSSN}</div>
             )}
           </div>
+
+          {selectedMember && (
+            <div className="mt-4 rounded-2xl border border-black/5 bg-[var(--surface-muted)] p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--ink-muted)]">
+                    Identity Status
+                  </p>
+                  <div className="mt-1 text-sm font-semibold text-[var(--foreground)]">
+                    {selectedMember.identity_status}
+                  </div>
+                  <div className="text-xs text-[var(--ink-muted)]">
+                    Attempts: {selectedMember.identity_attempts}
+                  </div>
+                  {selectedMember.identity_last_checked && (
+                    <div className="text-xs text-[var(--ink-muted)]">
+                      Last checked: {new Date(selectedMember.identity_last_checked).toLocaleString()}
+                    </div>
+                  )}
+                  {selectedMember.identity_notes && (
+                    <div className="text-xs text-[var(--ink-muted)]">
+                      Notes: {selectedMember.identity_notes}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={handleIdentityCheck}
+                  disabled={isCheckingIdentity}
+                  className="rounded-full border border-[var(--accent)]/40 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--accent)] disabled:opacity-60"
+                >
+                  {isCheckingIdentity ? "Checking..." : "Run Identity Check"}
+                </button>
+              </div>
+              {identityMessage && (
+                <div className="mt-3 text-xs text-[var(--accent-2)]">{identityMessage}</div>
+              )}
+              <div className="mt-4 rounded-xl border border-black/10 bg-white/70 p-3">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--ink-muted)]">
+                  Identity Audit
+                </p>
+                {identityAudits.length === 0 ? (
+                  <p className="mt-2 text-xs text-[var(--ink-muted)]">No checks logged yet.</p>
+                ) : (
+                  <ul className="mt-2 space-y-2 text-xs text-[var(--foreground)]">
+                    {identityAudits.slice(0, 4).map((audit) => (
+                      <li key={audit.id} className="flex items-start justify-between gap-2">
+                        <div>
+                          <span className="font-semibold">{audit.result}</span>
+                          <span className="text-[var(--ink-muted)]"> — {audit.reason}</span>
+                        </div>
+                        <span className="text-[10px] text-[var(--ink-muted)]">
+                          {new Date(audit.created_at).toLocaleString()}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="mt-6 grid gap-4 lg:grid-cols-2">
             <Input label="First Name" value={form.first_name} onChange={(v) => handleChange("first_name", v)} />

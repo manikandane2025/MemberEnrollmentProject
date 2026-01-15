@@ -45,5 +45,23 @@ class MemberRead(BaseModel):
     state: str
     zip_code: str
     status: str
+    identity_status: str
+    identity_attempts: int
+    identity_last_checked: Optional[str]
+    identity_notes: Optional[str]
     created_at: str
     updated_at: str
+
+
+class IdentityCheckResult(BaseModel):
+    status: str
+    attempts: int
+    reason: str
+
+
+class IdentityAuditRead(BaseModel):
+    id: str
+    member_id: str
+    result: str
+    reason: str
+    created_at: str

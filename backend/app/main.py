@@ -2,8 +2,17 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session
 from .db import engine, init_db
-from .schemas import MemberCreate, MemberUpdate, MemberRead
-from .crud import create_member, list_members, get_member, update_member, delete_member, mask_ssn
+from .schemas import MemberCreate, MemberUpdate, MemberRead, IdentityCheckResult, IdentityAuditRead
+from .crud import (
+    create_member,
+    list_members,
+    get_member,
+    update_member,
+    delete_member,
+    mask_ssn,
+    run_identity_check,
+    list_identity_audits,
+)
 
 app = FastAPI(title="Member Enrollment API")
 
@@ -36,6 +45,10 @@ def to_read(member) -> MemberRead:
         state=member.state,
         zip_code=member.zip_code,
         status=member.status,
+        identity_status=member.identity_status,
+        identity_attempts=member.identity_attempts,
+        identity_last_checked=member.identity_last_checked.isoformat() if member.identity_last_checked else None,
+        identity_notes=member.identity_notes,
         created_at=member.created_at.isoformat(),
         updated_at=member.updated_at.isoformat()
     )
@@ -87,3 +100,32 @@ def delete_member_api(member_id: str):
             raise HTTPException(status_code=404, detail="Member not found")
         delete_member(session, member)
         return {"status": "deleted"}
+
+
+@app.post("/members/{member_id}/identity-check", response_model=IdentityCheckResult)
+def identity_check_api(member_id: str):
+    with Session(engine) as session:
+        member = get_member(session, member_id)
+        if not member:
+            raise HTTPException(status_code=404, detail="Member not found")
+        status, attempts, reason = run_identity_check(session, member)
+        return IdentityCheckResult(status=status, attempts=attempts, reason=reason)
+
+
+@app.get("/members/{member_id}/identity-audit", response_model=list[IdentityAuditRead])
+def identity_audit_api(member_id: str):
+    with Session(engine) as session:
+        member = get_member(session, member_id)
+        if not member:
+            raise HTTPException(status_code=404, detail="Member not found")
+        audits = list_identity_audits(session, member_id)
+        return [
+            IdentityAuditRead(
+                id=audit.id,
+                member_id=audit.member_id,
+                result=audit.result,
+                reason=audit.reason,
+                created_at=audit.created_at.isoformat(),
+            )
+            for audit in audits
+        ]
