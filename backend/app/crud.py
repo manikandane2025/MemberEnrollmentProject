@@ -1,6 +1,6 @@
 from datetime import datetime
 from sqlmodel import Session, select
-from .models import Member, IdentityAudit
+from .models import Member, IdentityAudit, EligibilityAudit
 from .schemas import MemberCreate, MemberUpdate
 
 
@@ -98,4 +98,55 @@ def run_identity_check(session: Session, member: Member) -> tuple[str, int, str]
 
 def list_identity_audits(session: Session, member_id: str) -> list[IdentityAudit]:
     statement = select(IdentityAudit).where(IdentityAudit.member_id == member_id).order_by(IdentityAudit.created_at.desc())
+    return list(session.exec(statement).all())
+
+
+def run_eligibility_check(session: Session, member: Member) -> tuple[str, str, int, str]:
+    max_attempts = 3
+    if member.eligibility_attempts >= max_attempts:
+        result = "FAILED"
+        code = "ELG-99"
+        reason = "Maximum attempts reached"
+    else:
+        member.eligibility_attempts += 1
+        zip_code = member.zip_code or ""
+        if zip_code.endswith("000"):
+            result = "TIMEOUT"
+            code = "ELG-98"
+            reason = "Eligibility service timeout"
+        elif zip_code.endswith("999"):
+            result = "INELIGIBLE"
+            code = "ELG-02"
+            reason = "Plan not available in region"
+        elif zip_code.startswith("8"):
+            result = "REVIEW"
+            code = "ELG-01"
+            reason = "Partial match: manual review required"
+        else:
+            result = "ELIGIBLE"
+            code = "ELG-00"
+            reason = "Eligible"
+
+    member.eligibility_status = result
+    member.eligibility_code = code
+    member.eligibility_last_checked = datetime.utcnow()
+    member.eligibility_notes = reason
+    session.add(member)
+    session.commit()
+    session.refresh(member)
+
+    audit = EligibilityAudit(
+        member_id=member.id,
+        result=result,
+        code=code,
+        reason=reason
+    )
+    session.add(audit)
+    session.commit()
+
+    return result, code, member.eligibility_attempts, reason
+
+
+def list_eligibility_audits(session: Session, member_id: str) -> list[EligibilityAudit]:
+    statement = select(EligibilityAudit).where(EligibilityAudit.member_id == member_id).order_by(EligibilityAudit.created_at.desc())
     return list(session.exec(statement).all())

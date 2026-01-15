@@ -49,6 +49,11 @@ class MemberRead(BaseModel):
     identity_attempts: int
     identity_last_checked: Optional[str]
     identity_notes: Optional[str]
+    eligibility_status: str
+    eligibility_code: Optional[str]
+    eligibility_attempts: int
+    eligibility_last_checked: Optional[str]
+    eligibility_notes: Optional[str]
     created_at: str
     updated_at: str
 
@@ -63,5 +68,21 @@ class IdentityAuditRead(BaseModel):
     id: str
     member_id: str
     result: str
+    reason: str
+    created_at: str
+
+
+class EligibilityCheckResult(BaseModel):
+    status: str
+    code: str
+    attempts: int
+    reason: str
+
+
+class EligibilityAuditRead(BaseModel):
+    id: str
+    member_id: str
+    result: str
+    code: str
     reason: str
     created_at: str

@@ -34,6 +34,15 @@ type IdentityAudit = {
   created_at: string;
 };
 
+type EligibilityAudit = {
+  id: string;
+  member_id: string;
+  result: string;
+  code: string;
+  reason: string;
+  created_at: string;
+};
+
 type MemberForm = {
   first_name: string;
   last_name: string;
@@ -72,6 +81,9 @@ export default function Home() {
   const [isCheckingIdentity, setIsCheckingIdentity] = useState(false);
   const [identityAudits, setIdentityAudits] = useState<IdentityAudit[]>([]);
   const [identityMessage, setIdentityMessage] = useState<string | null>(null);
+  const [isCheckingEligibility, setIsCheckingEligibility] = useState(false);
+  const [eligibilityAudits, setEligibilityAudits] = useState<EligibilityAudit[]>([]);
+  const [eligibilityMessage, setEligibilityMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const selectedMember = useMemo(
@@ -106,6 +118,18 @@ export default function Home() {
     }
   };
 
+  const loadEligibilityAudit = async (memberId: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/members/${memberId}/eligibility-audit`);
+      if (!res.ok) throw new Error("Failed to load eligibility audit");
+      const data = (await res.json()) as EligibilityAudit[];
+      setEligibilityAudits(data);
+    } catch (err) {
+      setEligibilityAudits([]);
+      setError(String(err));
+    }
+  };
+
   useEffect(() => {
     loadMembers();
   }, []);
@@ -113,8 +137,10 @@ export default function Home() {
   useEffect(() => {
     if (selectedId) {
       loadIdentityAudit(selectedId);
+      loadEligibilityAudit(selectedId);
     } else {
       setIdentityAudits([]);
+      setEligibilityAudits([]);
     }
   }, [selectedId]);
 
@@ -135,6 +161,7 @@ export default function Home() {
     });
     setMaskedSSN(member.masked_ssn);
     setIdentityMessage(null);
+    setEligibilityMessage(null);
   };
 
   const handleChange = (key: keyof MemberForm, value: string) => {
@@ -146,6 +173,7 @@ export default function Home() {
     setForm(emptyForm);
     setMaskedSSN("");
     setIdentityMessage(null);
+    setEligibilityMessage(null);
   };
 
   const handleSave = async () => {
@@ -220,6 +248,28 @@ export default function Home() {
       setError(String(err));
     } finally {
       setIsCheckingIdentity(false);
+    }
+  };
+
+  const handleEligibilityCheck = async () => {
+    if (!selectedMember) return;
+    const memberId = selectedMember.id;
+    setIsCheckingEligibility(true);
+    setError(null);
+    setEligibilityMessage(null);
+    try {
+      const res = await fetch(`${API_BASE}/members/${memberId}/eligibility-check`, {
+        method: "POST",
+      });
+      if (!res.ok) throw new Error("Eligibility check failed");
+      const data = (await res.json()) as { status: string; code: string; attempts: number; reason: string };
+      setEligibilityMessage(`${data.status} ${data.code}: ${data.reason} (attempts: ${data.attempts})`);
+      await loadMembers();
+      await loadEligibilityAudit(memberId);
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setIsCheckingEligibility(false);
     }
   };
 
@@ -300,61 +350,125 @@ export default function Home() {
           </div>
 
           {selectedMember && (
-            <div className="mt-4 rounded-2xl border border-black/5 bg-[var(--surface-muted)] p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <div className="rounded-2xl border border-black/5 bg-[var(--surface-muted)] p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--ink-muted)]">
+                      Identity Status
+                    </p>
+                    <div className="mt-1 text-sm font-semibold text-[var(--foreground)]">
+                      {selectedMember.identity_status}
+                    </div>
+                    <div className="text-xs text-[var(--ink-muted)]">
+                      Attempts: {selectedMember.identity_attempts}
+                    </div>
+                    {selectedMember.identity_last_checked && (
+                      <div className="text-xs text-[var(--ink-muted)]">
+                        Last checked: {new Date(selectedMember.identity_last_checked).toLocaleString()}
+                      </div>
+                    )}
+                    {selectedMember.identity_notes && (
+                      <div className="text-xs text-[var(--ink-muted)]">
+                        Notes: {selectedMember.identity_notes}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={handleIdentityCheck}
+                    disabled={isCheckingIdentity}
+                    className="rounded-full border border-[var(--accent)]/40 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--accent)] disabled:opacity-60"
+                  >
+                    {isCheckingIdentity ? "Checking..." : "Run Identity Check"}
+                  </button>
+                </div>
+                {identityMessage && (
+                  <div className="mt-3 text-xs text-[var(--accent-2)]">{identityMessage}</div>
+                )}
+                <div className="mt-4 rounded-xl border border-black/10 bg-white/70 p-3">
                   <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--ink-muted)]">
-                    Identity Status
+                    Identity Audit
                   </p>
-                  <div className="mt-1 text-sm font-semibold text-[var(--foreground)]">
-                    {selectedMember.identity_status}
-                  </div>
-                  <div className="text-xs text-[var(--ink-muted)]">
-                    Attempts: {selectedMember.identity_attempts}
-                  </div>
-                  {selectedMember.identity_last_checked && (
-                    <div className="text-xs text-[var(--ink-muted)]">
-                      Last checked: {new Date(selectedMember.identity_last_checked).toLocaleString()}
-                    </div>
-                  )}
-                  {selectedMember.identity_notes && (
-                    <div className="text-xs text-[var(--ink-muted)]">
-                      Notes: {selectedMember.identity_notes}
-                    </div>
+                  {identityAudits.length === 0 ? (
+                    <p className="mt-2 text-xs text-[var(--ink-muted)]">No checks logged yet.</p>
+                  ) : (
+                    <ul className="mt-2 space-y-2 text-xs text-[var(--foreground)]">
+                      {identityAudits.slice(0, 4).map((audit) => (
+                        <li key={audit.id} className="flex items-start justify-between gap-2">
+                          <div>
+                            <span className="font-semibold">{audit.result}</span>
+                            <span className="text-[var(--ink-muted)]"> — {audit.reason}</span>
+                          </div>
+                          <span className="text-[10px] text-[var(--ink-muted)]">
+                            {new Date(audit.created_at).toLocaleString()}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
                   )}
                 </div>
-                <button
-                  onClick={handleIdentityCheck}
-                  disabled={isCheckingIdentity}
-                  className="rounded-full border border-[var(--accent)]/40 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--accent)] disabled:opacity-60"
-                >
-                  {isCheckingIdentity ? "Checking..." : "Run Identity Check"}
-                </button>
               </div>
-              {identityMessage && (
-                <div className="mt-3 text-xs text-[var(--accent-2)]">{identityMessage}</div>
-              )}
-              <div className="mt-4 rounded-xl border border-black/10 bg-white/70 p-3">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--ink-muted)]">
-                  Identity Audit
-                </p>
-                {identityAudits.length === 0 ? (
-                  <p className="mt-2 text-xs text-[var(--ink-muted)]">No checks logged yet.</p>
-                ) : (
-                  <ul className="mt-2 space-y-2 text-xs text-[var(--foreground)]">
-                    {identityAudits.slice(0, 4).map((audit) => (
-                      <li key={audit.id} className="flex items-start justify-between gap-2">
-                        <div>
-                          <span className="font-semibold">{audit.result}</span>
-                          <span className="text-[var(--ink-muted)]"> — {audit.reason}</span>
-                        </div>
-                        <span className="text-[10px] text-[var(--ink-muted)]">
-                          {new Date(audit.created_at).toLocaleString()}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+
+              <div className="rounded-2xl border border-black/5 bg-[var(--surface-muted)] p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--ink-muted)]">
+                      Eligibility Status
+                    </p>
+                    <div className="mt-1 text-sm font-semibold text-[var(--foreground)]">
+                      {selectedMember.eligibility_status}
+                    </div>
+                    <div className="text-xs text-[var(--ink-muted)]">
+                      Code: {selectedMember.eligibility_code || "—"}
+                    </div>
+                    <div className="text-xs text-[var(--ink-muted)]">
+                      Attempts: {selectedMember.eligibility_attempts}
+                    </div>
+                    {selectedMember.eligibility_last_checked && (
+                      <div className="text-xs text-[var(--ink-muted)]">
+                        Last checked: {new Date(selectedMember.eligibility_last_checked).toLocaleString()}
+                      </div>
+                    )}
+                    {selectedMember.eligibility_notes && (
+                      <div className="text-xs text-[var(--ink-muted)]">
+                        Notes: {selectedMember.eligibility_notes}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={handleEligibilityCheck}
+                    disabled={isCheckingEligibility}
+                    className="rounded-full border border-[var(--accent)]/40 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--accent)] disabled:opacity-60"
+                  >
+                    {isCheckingEligibility ? "Checking..." : "Run Eligibility Check"}
+                  </button>
+                </div>
+                {eligibilityMessage && (
+                  <div className="mt-3 text-xs text-[var(--accent-2)]">{eligibilityMessage}</div>
                 )}
+                <div className="mt-4 rounded-xl border border-black/10 bg-white/70 p-3">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--ink-muted)]">
+                    Eligibility Audit
+                  </p>
+                  {eligibilityAudits.length === 0 ? (
+                    <p className="mt-2 text-xs text-[var(--ink-muted)]">No checks logged yet.</p>
+                  ) : (
+                    <ul className="mt-2 space-y-2 text-xs text-[var(--foreground)]">
+                      {eligibilityAudits.slice(0, 4).map((audit) => (
+                        <li key={audit.id} className="flex items-start justify-between gap-2">
+                          <div>
+                            <span className="font-semibold">{audit.result}</span>
+                            <span className="text-[var(--ink-muted)]"> — {audit.code}</span>
+                            <span className="text-[var(--ink-muted)]"> — {audit.reason}</span>
+                          </div>
+                          <span className="text-[10px] text-[var(--ink-muted)]">
+                            {new Date(audit.created_at).toLocaleString()}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </div>
             </div>
           )}

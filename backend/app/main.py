@@ -2,7 +2,15 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session
 from .db import engine, init_db
-from .schemas import MemberCreate, MemberUpdate, MemberRead, IdentityCheckResult, IdentityAuditRead
+from .schemas import (
+    MemberCreate,
+    MemberUpdate,
+    MemberRead,
+    IdentityCheckResult,
+    IdentityAuditRead,
+    EligibilityCheckResult,
+    EligibilityAuditRead,
+)
 from .crud import (
     create_member,
     list_members,
@@ -12,6 +20,8 @@ from .crud import (
     mask_ssn,
     run_identity_check,
     list_identity_audits,
+    run_eligibility_check,
+    list_eligibility_audits,
 )
 
 app = FastAPI(title="Member Enrollment API")
@@ -49,6 +59,11 @@ def to_read(member) -> MemberRead:
         identity_attempts=member.identity_attempts,
         identity_last_checked=member.identity_last_checked.isoformat() if member.identity_last_checked else None,
         identity_notes=member.identity_notes,
+        eligibility_status=member.eligibility_status,
+        eligibility_code=member.eligibility_code,
+        eligibility_attempts=member.eligibility_attempts,
+        eligibility_last_checked=member.eligibility_last_checked.isoformat() if member.eligibility_last_checked else None,
+        eligibility_notes=member.eligibility_notes,
         created_at=member.created_at.isoformat(),
         updated_at=member.updated_at.isoformat()
     )
@@ -124,6 +139,36 @@ def identity_audit_api(member_id: str):
                 id=audit.id,
                 member_id=audit.member_id,
                 result=audit.result,
+                reason=audit.reason,
+                created_at=audit.created_at.isoformat(),
+            )
+            for audit in audits
+        ]
+
+
+@app.post("/members/{member_id}/eligibility-check", response_model=EligibilityCheckResult)
+def eligibility_check_api(member_id: str):
+    with Session(engine) as session:
+        member = get_member(session, member_id)
+        if not member:
+            raise HTTPException(status_code=404, detail="Member not found")
+        status, code, attempts, reason = run_eligibility_check(session, member)
+        return EligibilityCheckResult(status=status, code=code, attempts=attempts, reason=reason)
+
+
+@app.get("/members/{member_id}/eligibility-audit", response_model=list[EligibilityAuditRead])
+def eligibility_audit_api(member_id: str):
+    with Session(engine) as session:
+        member = get_member(session, member_id)
+        if not member:
+            raise HTTPException(status_code=404, detail="Member not found")
+        audits = list_eligibility_audits(session, member_id)
+        return [
+            EligibilityAuditRead(
+                id=audit.id,
+                member_id=audit.member_id,
+                result=audit.result,
+                code=audit.code,
                 reason=audit.reason,
                 created_at=audit.created_at.isoformat(),
             )
