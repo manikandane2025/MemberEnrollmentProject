@@ -86,3 +86,33 @@ class EligibilityAuditRead(BaseModel):
     code: str
     reason: str
     created_at: str
+
+
+class PlanCreate(BaseModel):
+    name: str
+    tier: str
+    premium: float
+    deductible: float
+    oop_max: float
+    coverage_summary: str
+    network: str
+    active: bool = True
+
+
+class PlanRead(BaseModel):
+    id: str
+    name: str
+    tier: str
+    premium: float
+    deductible: float
+    oop_max: float
+    coverage_summary: str
+    network: str
+    active: bool
+
+
+class MemberPlanRead(BaseModel):
+    id: str
+    member_id: str
+    plan_id: str
+    selected_at: str

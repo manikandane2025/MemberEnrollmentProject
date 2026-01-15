@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlmodel import Session, select
-from .models import Member, IdentityAudit, EligibilityAudit
-from .schemas import MemberCreate, MemberUpdate
+from .models import Member, IdentityAudit, EligibilityAudit, Plan, MemberPlan
+from .schemas import MemberCreate, MemberUpdate, PlanCreate
 
 
 def mask_ssn(last4: str) -> str:
@@ -150,3 +150,84 @@ def run_eligibility_check(session: Session, member: Member) -> tuple[str, str, i
 def list_eligibility_audits(session: Session, member_id: str) -> list[EligibilityAudit]:
     statement = select(EligibilityAudit).where(EligibilityAudit.member_id == member_id).order_by(EligibilityAudit.created_at.desc())
     return list(session.exec(statement).all())
+
+
+def seed_plans(session: Session) -> None:
+    if session.exec(select(Plan)).first():
+        return
+    plans = [
+        Plan(
+            name="Silver Value",
+            tier="Silver",
+            premium=320.0,
+            deductible=2500.0,
+            oop_max=6500.0,
+            coverage_summary="Balanced coverage with standard network access.",
+            network="Standard PPO",
+        ),
+        Plan(
+            name="Gold Advantage",
+            tier="Gold",
+            premium=420.0,
+            deductible=1500.0,
+            oop_max=5000.0,
+            coverage_summary="Lower deductible with expanded specialist coverage.",
+            network="Expanded PPO",
+        ),
+        Plan(
+            name="Bronze Saver",
+            tier="Bronze",
+            premium=250.0,
+            deductible=4500.0,
+            oop_max=7800.0,
+            coverage_summary="Lowest premium with higher deductible.",
+            network="Value HMO",
+        ),
+        Plan(
+            name="Platinum Elite",
+            tier="Platinum",
+            premium=560.0,
+            deductible=800.0,
+            oop_max=3500.0,
+            coverage_summary="Premium coverage with minimal out-of-pocket costs.",
+            network="Elite PPO",
+        ),
+    ]
+    session.add_all(plans)
+    session.commit()
+
+
+def list_plans(session: Session, tier: str | None = None) -> list[Plan]:
+    statement = select(Plan).where(Plan.active == True)
+    if tier:
+        statement = statement.where(Plan.tier == tier)
+    return list(session.exec(statement).all())
+
+
+def create_plan(session: Session, data: PlanCreate) -> Plan:
+    plan = Plan(**data.model_dump())
+    session.add(plan)
+    session.commit()
+    session.refresh(plan)
+    return plan
+
+
+def select_member_plan(session: Session, member: Member, plan_id: str) -> MemberPlan:
+    existing = session.exec(
+        select(MemberPlan).where(MemberPlan.member_id == member.id)
+    ).first()
+    if existing:
+        existing.plan_id = plan_id
+        session.add(existing)
+        session.commit()
+        session.refresh(existing)
+        return existing
+    selection = MemberPlan(member_id=member.id, plan_id=plan_id)
+    session.add(selection)
+    session.commit()
+    session.refresh(selection)
+    return selection
+
+
+def get_member_plan(session: Session, member_id: str) -> MemberPlan | None:
+    return session.exec(select(MemberPlan).where(MemberPlan.member_id == member_id)).first()

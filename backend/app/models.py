@@ -46,3 +46,22 @@ class EligibilityAudit(SQLModel, table=True):
     code: str
     reason: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class Plan(SQLModel, table=True):
+    id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True, index=True)
+    name: str
+    tier: str
+    premium: float
+    deductible: float
+    oop_max: float
+    coverage_summary: str
+    network: str
+    active: bool = True
+
+
+class MemberPlan(SQLModel, table=True):
+    id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True, index=True)
+    member_id: str = Field(index=True)
+    plan_id: str = Field(index=True)
+    selected_at: datetime = Field(default_factory=datetime.utcnow)

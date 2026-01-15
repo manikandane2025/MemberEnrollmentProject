@@ -1,7 +1,8 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session
 from .db import engine, init_db
+from .models import Plan
 from .schemas import (
     MemberCreate,
     MemberUpdate,
@@ -10,6 +11,9 @@ from .schemas import (
     IdentityAuditRead,
     EligibilityCheckResult,
     EligibilityAuditRead,
+    PlanCreate,
+    PlanRead,
+    MemberPlanRead,
 )
 from .crud import (
     create_member,
@@ -22,6 +26,11 @@ from .crud import (
     list_identity_audits,
     run_eligibility_check,
     list_eligibility_audits,
+    seed_plans,
+    list_plans,
+    create_plan,
+    select_member_plan,
+    get_member_plan,
 )
 
 app = FastAPI(title="Member Enrollment API")
@@ -38,6 +47,8 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup() -> None:
     init_db()
+    with Session(engine) as session:
+        seed_plans(session)
 
 
 def to_read(member) -> MemberRead:
@@ -174,3 +185,72 @@ def eligibility_audit_api(member_id: str):
             )
             for audit in audits
         ]
+
+
+@app.get("/plans", response_model=list[PlanRead])
+def list_plans_api(tier: str | None = Query(default=None)):
+    with Session(engine) as session:
+        plans = list_plans(session, tier=tier)
+        return [
+            PlanRead(
+                id=plan.id,
+                name=plan.name,
+                tier=plan.tier,
+                premium=plan.premium,
+                deductible=plan.deductible,
+                oop_max=plan.oop_max,
+                coverage_summary=plan.coverage_summary,
+                network=plan.network,
+                active=plan.active,
+            )
+            for plan in plans
+        ]
+
+
+@app.post("/plans", response_model=PlanRead)
+def create_plan_api(payload: PlanCreate):
+    with Session(engine) as session:
+        plan = create_plan(session, payload)
+        return PlanRead(
+            id=plan.id,
+            name=plan.name,
+            tier=plan.tier,
+            premium=plan.premium,
+            deductible=plan.deductible,
+            oop_max=plan.oop_max,
+            coverage_summary=plan.coverage_summary,
+            network=plan.network,
+            active=plan.active,
+        )
+
+
+@app.post("/members/{member_id}/plan", response_model=MemberPlanRead)
+def select_plan_api(member_id: str, plan_id: str):
+    with Session(engine) as session:
+        member = get_member(session, member_id)
+        if not member:
+            raise HTTPException(status_code=404, detail="Member not found")
+        plan = session.get(Plan, plan_id)
+        if not plan:
+            raise HTTPException(status_code=404, detail="Plan not found")
+        selection = select_member_plan(session, member, plan_id)
+        return MemberPlanRead(
+            id=selection.id,
+            member_id=selection.member_id,
+            plan_id=selection.plan_id,
+            selected_at=selection.selected_at.isoformat(),
+        )
+
+
+@app.get("/members/{member_id}/plan", response_model=MemberPlanRead | None)
+def get_plan_api(member_id: str):
+    with Session(engine) as session:
+        selection = get_member_plan(session, member_id)
+        if not selection:
+            return None
+        return MemberPlanRead(
+            id=selection.id,
+            member_id=selection.member_id,
+            plan_id=selection.plan_id,
+            selected_at=selection.selected_at.isoformat(),
+        )

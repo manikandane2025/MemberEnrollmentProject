@@ -69,5 +69,34 @@ def run_migrations() -> None:
             """
         )
 
+    if not table_exists(cursor, "plan"):
+        cursor.execute(
+            """
+            CREATE TABLE plan (
+                id TEXT PRIMARY KEY,
+                name TEXT,
+                tier TEXT,
+                premium REAL,
+                deductible REAL,
+                oop_max REAL,
+                coverage_summary TEXT,
+                network TEXT,
+                active INTEGER
+            )
+            """
+        )
+
+    if not table_exists(cursor, "memberplan"):
+        cursor.execute(
+            """
+            CREATE TABLE memberplan (
+                id TEXT PRIMARY KEY,
+                member_id TEXT,
+                plan_id TEXT,
+                selected_at TEXT
+            )
+            """
+        )
+
     conn.commit()
     conn.close()

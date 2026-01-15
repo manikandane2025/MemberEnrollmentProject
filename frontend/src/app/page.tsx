@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8001";
+const SPRINT_LABEL = "Sprint-04";
+const SPRINT_TAGLINE =
+  "Plan catalog, tier filtering, comparisons, and coverage summaries for member selection.";
 
 type Member = {
   id: string;
@@ -22,6 +25,11 @@ type Member = {
   identity_attempts: number;
   identity_last_checked?: string | null;
   identity_notes?: string | null;
+  eligibility_status: string;
+  eligibility_code?: string | null;
+  eligibility_attempts: number;
+  eligibility_last_checked?: string | null;
+  eligibility_notes?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -41,6 +49,18 @@ type EligibilityAudit = {
   code: string;
   reason: string;
   created_at: string;
+};
+
+type Plan = {
+  id: string;
+  name: string;
+  tier: string;
+  premium: number;
+  deductible: number;
+  oop_max: number;
+  coverage_summary: string;
+  network: string;
+  active: boolean;
 };
 
 type MemberForm = {
@@ -84,12 +104,33 @@ export default function Home() {
   const [isCheckingEligibility, setIsCheckingEligibility] = useState(false);
   const [eligibilityAudits, setEligibilityAudits] = useState<EligibilityAudit[]>([]);
   const [eligibilityMessage, setEligibilityMessage] = useState<string | null>(null);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [planFilter, setPlanFilter] = useState<string>("All");
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [comparePlanIds, setComparePlanIds] = useState<string[]>([]);
+  const [planMessage, setPlanMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const selectedMember = useMemo(
     () => members.find((m) => m.id === selectedId) || null,
     [members, selectedId]
   );
+
+  const planTiers = useMemo(() => {
+    const tiers = Array.from(new Set(plans.map((plan) => plan.tier)));
+    return ["All", ...tiers];
+  }, [plans]);
+
+  const filteredPlans = useMemo(() => {
+    if (planFilter === "All") return plans;
+    return plans.filter((plan) => plan.tier === planFilter);
+  }, [plans, planFilter]);
+
+  const comparePlans = useMemo(() => {
+    return comparePlanIds
+      .map((id) => plans.find((plan) => plan.id === id))
+      .filter(Boolean) as Plan[];
+  }, [comparePlanIds, plans]);
 
   const loadMembers = async () => {
     setIsLoading(true);
@@ -130,17 +171,43 @@ export default function Home() {
     }
   };
 
+  const loadPlans = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/plans`);
+      if (!res.ok) throw new Error("Failed to load plans");
+      const data = (await res.json()) as Plan[];
+      setPlans(data);
+    } catch (err) {
+      setError(String(err));
+    }
+  };
+
+  const loadMemberPlan = async (memberId: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/members/${memberId}/plan`);
+      if (!res.ok) throw new Error("Failed to load member plan");
+      const data = (await res.json()) as { plan_id: string } | null;
+      setSelectedPlanId(data?.plan_id || null);
+    } catch (err) {
+      setSelectedPlanId(null);
+      setError(String(err));
+    }
+  };
+
   useEffect(() => {
     loadMembers();
+    loadPlans();
   }, []);
 
   useEffect(() => {
     if (selectedId) {
       loadIdentityAudit(selectedId);
       loadEligibilityAudit(selectedId);
+      loadMemberPlan(selectedId);
     } else {
       setIdentityAudits([]);
       setEligibilityAudits([]);
+      setSelectedPlanId(null);
     }
   }, [selectedId]);
 
@@ -162,6 +229,8 @@ export default function Home() {
     setMaskedSSN(member.masked_ssn);
     setIdentityMessage(null);
     setEligibilityMessage(null);
+    setPlanMessage(null);
+    setComparePlanIds([]);
   };
 
   const handleChange = (key: keyof MemberForm, value: string) => {
@@ -174,6 +243,8 @@ export default function Home() {
     setMaskedSSN("");
     setIdentityMessage(null);
     setEligibilityMessage(null);
+    setPlanMessage(null);
+    setComparePlanIds([]);
   };
 
   const handleSave = async () => {
@@ -273,6 +344,34 @@ export default function Home() {
     }
   };
 
+  const handlePlanSelect = async (planId: string) => {
+    if (!selectedMember) return;
+    setError(null);
+    setPlanMessage(null);
+    try {
+      const res = await fetch(`${API_BASE}/members/${selectedMember.id}/plan?plan_id=${planId}`, {
+        method: "POST",
+      });
+      if (!res.ok) throw new Error("Plan selection failed");
+      setSelectedPlanId(planId);
+      setPlanMessage("Plan selection saved.");
+    } catch (err) {
+      setError(String(err));
+    }
+  };
+
+  const toggleCompare = (planId: string) => {
+    setComparePlanIds((prev) => {
+      if (prev.includes(planId)) {
+        return prev.filter((id) => id !== planId);
+      }
+      if (prev.length >= 2) {
+        return prev;
+      }
+      return [...prev, planId];
+    });
+  };
+
   return (
     <div className="min-h-screen px-6 py-10 lg:px-14">
       <header className="mb-10 flex flex-col gap-2">
@@ -282,11 +381,10 @@ export default function Home() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h1 className="text-3xl font-semibold text-[var(--foreground)] lg:text-4xl">
-              Sprint-01 Intake Studio
+              {SPRINT_LABEL} Intake Studio
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-[var(--ink-muted)]">
-              Capture applicant profiles, save drafts, edit details, and enforce field masking. Built for
-              sprint-based demos with clean traceability.
+              {SPRINT_TAGLINE}
             </p>
           </div>
           <div className="rounded-full border border-black/10 bg-[var(--surface)] px-4 py-2 text-xs text-[var(--ink-muted)] shadow-sm">
@@ -472,6 +570,114 @@ export default function Home() {
               </div>
             </div>
           )}
+
+          <div className="mt-6 rounded-3xl border border-black/5 bg-white/70 p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--ink-muted)]">
+                  Plan Catalog
+                </p>
+                <h3 className="text-lg font-semibold text-[var(--foreground)]">Plan Selection</h3>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {planTiers.map((tier) => (
+                  <button
+                    key={tier}
+                    onClick={() => setPlanFilter(tier)}
+                    className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] ${
+                      planFilter === tier
+                        ? "bg-[var(--accent)] text-white"
+                        : "border border-black/10 text-[var(--ink-muted)]"
+                    }`}
+                  >
+                    {tier}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {planMessage && (
+              <div className="mt-3 text-xs text-[var(--accent-2)]">{planMessage}</div>
+            )}
+
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              {filteredPlans.map((plan) => (
+                <div
+                  key={plan.id}
+                  className={`rounded-2xl border p-4 transition ${
+                    selectedPlanId === plan.id
+                      ? "border-[var(--accent)] bg-[var(--surface-muted)]"
+                      : "border-black/10 bg-white"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-[var(--foreground)]">{plan.name}</p>
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--ink-muted)]">
+                        {plan.tier} • {plan.network}
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-[var(--accent)]/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--accent)]">
+                      ${plan.premium.toFixed(0)}/mo
+                    </span>
+                  </div>
+                  <p className="mt-3 text-xs text-[var(--ink-muted)]">{plan.coverage_summary}</p>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-[var(--foreground)]">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--ink-muted)]">Deductible</p>
+                      <p>${plan.deductible.toFixed(0)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--ink-muted)]">OOP Max</p>
+                      <p>${plan.oop_max.toFixed(0)}</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button
+                      onClick={() => handlePlanSelect(plan.id)}
+                      disabled={!selectedMember}
+                      className="rounded-full bg-[var(--accent)] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-white disabled:opacity-60"
+                    >
+                      Select Plan
+                    </button>
+                    <button
+                      onClick={() => toggleCompare(plan.id)}
+                      className={`rounded-full border px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] ${
+                        comparePlanIds.includes(plan.id)
+                          ? "border-[var(--accent)] text-[var(--accent)]"
+                          : "border-black/10 text-[var(--ink-muted)]"
+                      }`}
+                    >
+                      {comparePlanIds.includes(plan.id) ? "Selected" : "Compare"}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {comparePlans.length === 2 && (
+              <div className="mt-6 rounded-2xl border border-black/10 bg-[var(--surface-muted)] p-4">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--ink-muted)]">
+                  Plan Comparison
+                </p>
+                <div className="mt-3 grid gap-4 lg:grid-cols-2">
+                  {comparePlans.map((plan) => (
+                    <div key={plan.id} className="rounded-xl border border-black/10 bg-white/70 p-4">
+                      <p className="text-sm font-semibold text-[var(--foreground)]">{plan.name}</p>
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--ink-muted)]">
+                        {plan.tier} • {plan.network}
+                      </p>
+                      <ul className="mt-3 space-y-2 text-xs text-[var(--foreground)]">
+                        <li>Premium: ${plan.premium.toFixed(0)}/mo</li>
+                        <li>Deductible: ${plan.deductible.toFixed(0)}</li>
+                        <li>OOP Max: ${plan.oop_max.toFixed(0)}</li>
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
 
           <div className="mt-6 grid gap-4 lg:grid-cols-2">
             <Input label="First Name" value={form.first_name} onChange={(v) => handleChange("first_name", v)} />
