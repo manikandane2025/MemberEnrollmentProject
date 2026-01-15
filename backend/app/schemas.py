@@ -116,3 +116,12 @@ class MemberPlanRead(BaseModel):
     member_id: str
     plan_id: str
     selected_at: str
+
+
+class DocumentRead(BaseModel):
+    id: str
+    member_id: str
+    filename: str
+    content_type: str
+    size_bytes: int
+    created_at: str

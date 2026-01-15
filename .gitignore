@@ -26,3 +26,6 @@ reports/
 # Local DB
 *.sqlite3
 *.db
+
+# Uploads
+backend/data/uploads/

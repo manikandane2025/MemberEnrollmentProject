@@ -65,3 +65,13 @@ class MemberPlan(SQLModel, table=True):
     member_id: str = Field(index=True)
     plan_id: str = Field(index=True)
     selected_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class Document(SQLModel, table=True):
+    id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True, index=True)
+    member_id: str = Field(index=True)
+    filename: str
+    content_type: str
+    size_bytes: int
+    stored_path: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)

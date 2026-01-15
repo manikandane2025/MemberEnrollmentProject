@@ -1,6 +1,6 @@
 from datetime import datetime
 from sqlmodel import Session, select
-from .models import Member, IdentityAudit, EligibilityAudit, Plan, MemberPlan
+from .models import Member, IdentityAudit, EligibilityAudit, Plan, MemberPlan, Document
 from .schemas import MemberCreate, MemberUpdate, PlanCreate
 
 
@@ -231,3 +231,29 @@ def select_member_plan(session: Session, member: Member, plan_id: str) -> Member
 
 def get_member_plan(session: Session, member_id: str) -> MemberPlan | None:
     return session.exec(select(MemberPlan).where(MemberPlan.member_id == member_id)).first()
+
+
+def add_document(
+    session: Session,
+    member: Member,
+    filename: str,
+    content_type: str,
+    size_bytes: int,
+    stored_path: str
+) -> Document:
+    doc = Document(
+        member_id=member.id,
+        filename=filename,
+        content_type=content_type,
+        size_bytes=size_bytes,
+        stored_path=stored_path,
+    )
+    session.add(doc)
+    session.commit()
+    session.refresh(doc)
+    return doc
+
+
+def list_documents(session: Session, member_id: str) -> list[Document]:
+    statement = select(Document).where(Document.member_id == member_id).order_by(Document.created_at.desc())
+    return list(session.exec(statement).all())

@@ -98,5 +98,20 @@ def run_migrations() -> None:
             """
         )
 
+    if not table_exists(cursor, "document"):
+        cursor.execute(
+            """
+            CREATE TABLE document (
+                id TEXT PRIMARY KEY,
+                member_id TEXT,
+                filename TEXT,
+                content_type TEXT,
+                size_bytes INTEGER,
+                stored_path TEXT,
+                created_at TEXT
+            )
+            """
+        )
+
     conn.commit()
     conn.close()

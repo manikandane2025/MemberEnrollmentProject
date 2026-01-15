@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8001";
-const SPRINT_LABEL = "Sprint-04";
+const SPRINT_LABEL = "Sprint-05";
 const SPRINT_TAGLINE =
-  "Plan catalog, tier filtering, comparisons, and coverage summaries for member selection.";
+  "Document uploads with validation, metadata capture, and member-linked storage.";
 
 type Member = {
   id: string;
@@ -63,6 +63,15 @@ type Plan = {
   active: boolean;
 };
 
+type DocumentItem = {
+  id: string;
+  member_id: string;
+  filename: string;
+  content_type: string;
+  size_bytes: number;
+  created_at: string;
+};
+
 type MemberForm = {
   first_name: string;
   last_name: string;
@@ -109,6 +118,8 @@ export default function Home() {
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [comparePlanIds, setComparePlanIds] = useState<string[]>([]);
   const [planMessage, setPlanMessage] = useState<string | null>(null);
+  const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const selectedMember = useMemo(
@@ -194,6 +205,18 @@ export default function Home() {
     }
   };
 
+  const loadDocuments = async (memberId: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/members/${memberId}/documents`);
+      if (!res.ok) throw new Error("Failed to load documents");
+      const data = (await res.json()) as DocumentItem[];
+      setDocuments(data);
+    } catch (err) {
+      setDocuments([]);
+      setError(String(err));
+    }
+  };
+
   useEffect(() => {
     loadMembers();
     loadPlans();
@@ -204,10 +227,12 @@ export default function Home() {
       loadIdentityAudit(selectedId);
       loadEligibilityAudit(selectedId);
       loadMemberPlan(selectedId);
+      loadDocuments(selectedId);
     } else {
       setIdentityAudits([]);
       setEligibilityAudits([]);
       setSelectedPlanId(null);
+      setDocuments([]);
     }
   }, [selectedId]);
 
@@ -231,6 +256,7 @@ export default function Home() {
     setEligibilityMessage(null);
     setPlanMessage(null);
     setComparePlanIds([]);
+    setDocuments([]);
   };
 
   const handleChange = (key: keyof MemberForm, value: string) => {
@@ -245,6 +271,7 @@ export default function Home() {
     setEligibilityMessage(null);
     setPlanMessage(null);
     setComparePlanIds([]);
+    setDocuments([]);
   };
 
   const handleSave = async () => {
@@ -370,6 +397,26 @@ export default function Home() {
       }
       return [...prev, planId];
     });
+  };
+
+  const handleDocumentUpload = async (file: File) => {
+    if (!selectedMember) return;
+    setIsUploading(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(`${API_BASE}/members/${selectedMember.id}/documents`, {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) throw new Error("Document upload failed");
+      await loadDocuments(selectedMember.id);
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -675,6 +722,61 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-6 rounded-3xl border border-black/5 bg-white/70 p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--ink-muted)]">
+                  Document Uploads
+                </p>
+                <h3 className="text-lg font-semibold text-[var(--foreground)]">Member Documents</h3>
+              </div>
+              <label className="rounded-full border border-black/10 bg-white px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--ink-muted)]">
+                <input
+                  type="file"
+                  className="hidden"
+                  disabled={!selectedMember || isUploading}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) {
+                      handleDocumentUpload(file);
+                      event.currentTarget.value = "";
+                    }
+                  }}
+                />
+                {isUploading ? "Uploading..." : "Upload Document"}
+              </label>
+            </div>
+            {!selectedMember && (
+              <p className="mt-3 text-xs text-[var(--ink-muted)]">
+                Select a member to upload documents.
+              </p>
+            )}
+            {selectedMember && (
+              <div className="mt-4 space-y-2">
+                {documents.length === 0 ? (
+                  <p className="text-xs text-[var(--ink-muted)]">No documents uploaded yet.</p>
+                ) : (
+                  documents.slice(0, 5).map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="flex items-center justify-between rounded-2xl border border-black/10 bg-white px-4 py-3 text-xs"
+                    >
+                      <div>
+                        <p className="font-semibold text-[var(--foreground)]">{doc.filename}</p>
+                        <p className="text-[var(--ink-muted)]">
+                          {doc.content_type} • {(doc.size_bytes / 1024).toFixed(1)} KB
+                        </p>
+                      </div>
+                      <span className="text-[10px] text-[var(--ink-muted)]">
+                        {new Date(doc.created_at).toLocaleString()}
+                      </span>
+                    </div>
+                  ))
+                )}
               </div>
             )}
           </div>

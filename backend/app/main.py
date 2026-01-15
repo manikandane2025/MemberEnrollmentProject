@@ -1,4 +1,5 @@
-from fastapi import FastAPI, HTTPException, Query
+import os
+from fastapi import FastAPI, HTTPException, Query, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session
 from .db import engine, init_db
@@ -14,6 +15,7 @@ from .schemas import (
     PlanCreate,
     PlanRead,
     MemberPlanRead,
+    DocumentRead,
 )
 from .crud import (
     create_member,
@@ -31,6 +33,8 @@ from .crud import (
     create_plan,
     select_member_plan,
     get_member_plan,
+    add_document,
+    list_documents,
 )
 
 app = FastAPI(title="Member Enrollment API")
@@ -254,3 +258,59 @@ def get_plan_api(member_id: str):
             plan_id=selection.plan_id,
             selected_at=selection.selected_at.isoformat(),
         )
+
+
+@app.post("/members/{member_id}/documents", response_model=DocumentRead)
+def upload_document_api(member_id: str, file: UploadFile = File(...)):
+    with Session(engine) as session:
+        member = get_member(session, member_id)
+        if not member:
+            raise HTTPException(status_code=404, detail="Member not found")
+        allowed_types = {"application/pdf", "image/jpeg", "image/png"}
+        uploads_dir = "data/uploads"
+        os.makedirs(uploads_dir, exist_ok=True)
+        safe_name = f"{member_id}_{file.filename}"
+        stored_path = os.path.join(uploads_dir, safe_name)
+        contents = file.file.read()
+        if file.content_type not in allowed_types:
+            raise HTTPException(status_code=400, detail="Unsupported file type")
+        if len(contents) > 10 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="File exceeds 10MB limit")
+        with open(stored_path, "wb") as f:
+            f.write(contents)
+        doc = add_document(
+            session,
+            member,
+            filename=file.filename,
+            content_type=file.content_type or "application/octet-stream",
+            size_bytes=len(contents),
+            stored_path=stored_path,
+        )
+        return DocumentRead(
+            id=doc.id,
+            member_id=doc.member_id,
+            filename=doc.filename,
+            content_type=doc.content_type,
+            size_bytes=doc.size_bytes,
+            created_at=doc.created_at.isoformat(),
+        )
+
+
+@app.get("/members/{member_id}/documents", response_model=list[DocumentRead])
+def list_documents_api(member_id: str):
+    with Session(engine) as session:
+        member = get_member(session, member_id)
+        if not member:
+            raise HTTPException(status_code=404, detail="Member not found")
+        docs = list_documents(session, member_id)
+        return [
+            DocumentRead(
+                id=doc.id,
+                member_id=doc.member_id,
+                filename=doc.filename,
+                content_type=doc.content_type,
+                size_bytes=doc.size_bytes,
+                created_at=doc.created_at.isoformat(),
+            )
+            for doc in docs
+        ]
