@@ -27,6 +27,8 @@ class Member(SQLModel, table=True):
     eligibility_attempts: int = 0
     eligibility_last_checked: Optional[datetime] = None
     eligibility_notes: Optional[str] = None
+    email_opt_in: bool = False
+    sms_opt_in: bool = False
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -74,4 +76,14 @@ class Document(SQLModel, table=True):
     content_type: str
     size_bytes: int
     stored_path: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class NotificationAudit(SQLModel, table=True):
+    id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True, index=True)
+    member_id: str = Field(index=True)
+    channel: str
+    template_id: str
+    status: str
+    message: str
     created_at: datetime = Field(default_factory=datetime.utcnow)

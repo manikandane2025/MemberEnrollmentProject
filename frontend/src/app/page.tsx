@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8001";
-const SPRINT_LABEL = "Sprint-05";
+const SPRINT_LABEL = "Sprint-06";
 const SPRINT_TAGLINE =
-  "Document uploads with validation, metadata capture, and member-linked storage.";
+  "Notification preferences, templates, and audit-ready delivery logs.";
 
 type Member = {
   id: string;
@@ -30,6 +30,8 @@ type Member = {
   eligibility_attempts: number;
   eligibility_last_checked?: string | null;
   eligibility_notes?: string | null;
+  email_opt_in: boolean;
+  sms_opt_in: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -69,6 +71,16 @@ type DocumentItem = {
   filename: string;
   content_type: string;
   size_bytes: number;
+  created_at: string;
+};
+
+type NotificationAudit = {
+  id: string;
+  member_id: string;
+  channel: string;
+  template_id: string;
+  status: string;
+  message: string;
   created_at: string;
 };
 
@@ -120,6 +132,9 @@ export default function Home() {
   const [planMessage, setPlanMessage] = useState<string | null>(null);
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationAudit[]>([]);
+  const [isSendingNotice, setIsSendingNotice] = useState(false);
+  const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const selectedMember = useMemo(
@@ -217,6 +232,18 @@ export default function Home() {
     }
   };
 
+  const loadNotifications = async (memberId: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/members/${memberId}/notifications`);
+      if (!res.ok) throw new Error("Failed to load notifications");
+      const data = (await res.json()) as NotificationAudit[];
+      setNotifications(data);
+    } catch (err) {
+      setNotifications([]);
+      setError(String(err));
+    }
+  };
+
   useEffect(() => {
     loadMembers();
     loadPlans();
@@ -228,11 +255,13 @@ export default function Home() {
       loadEligibilityAudit(selectedId);
       loadMemberPlan(selectedId);
       loadDocuments(selectedId);
+      loadNotifications(selectedId);
     } else {
       setIdentityAudits([]);
       setEligibilityAudits([]);
       setSelectedPlanId(null);
       setDocuments([]);
+      setNotifications([]);
     }
   }, [selectedId]);
 
@@ -257,10 +286,31 @@ export default function Home() {
     setPlanMessage(null);
     setComparePlanIds([]);
     setDocuments([]);
+    setNotifications([]);
+    setNoticeMessage(null);
   };
 
   const handleChange = (key: keyof MemberForm, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleTogglePreference = async (field: "email_opt_in" | "sms_opt_in", value: boolean) => {
+    if (!selectedMember) return;
+    setIsSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_BASE}/members/${selectedMember.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: value }),
+      });
+      if (!res.ok) throw new Error("Failed to update preferences");
+      await loadMembers();
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleNew = () => {
@@ -272,6 +322,8 @@ export default function Home() {
     setPlanMessage(null);
     setComparePlanIds([]);
     setDocuments([]);
+    setNotifications([]);
+    setNoticeMessage(null);
   };
 
   const handleSave = async () => {
@@ -416,6 +468,37 @@ export default function Home() {
       setError(String(err));
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleNoticeSend = async (templateId: string, channel: "email" | "sms") => {
+    if (!selectedMember) return;
+    setIsSendingNotice(true);
+    setError(null);
+    setNoticeMessage(null);
+    try {
+      const planName = plans.find((plan) => plan.id === selectedPlanId)?.name || "Selected Plan";
+      const payload = {
+        channel,
+        template_id: templateId,
+        variables: {
+          first_name: selectedMember.first_name,
+          plan_name: planName,
+          filename: documents[0]?.filename || "uploaded file",
+        },
+      };
+      const res = await fetch(`${API_BASE}/members/${selectedMember.id}/notifications`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error("Notification send failed");
+      setNoticeMessage("Notification sent.");
+      await loadNotifications(selectedMember.id);
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setIsSendingNotice(false);
     }
   };
 
@@ -780,6 +863,86 @@ export default function Home() {
               </div>
             )}
           </div>
+
+          {selectedMember && (
+            <div className="mt-6 rounded-3xl border border-black/5 bg-white/70 p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--ink-muted)]">
+                    Notification Preferences
+                  </p>
+                  <h3 className="text-lg font-semibold text-[var(--foreground)]">Email and SMS</h3>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <span className="text-[10px] uppercase tracking-[0.2em] text-[var(--ink-muted)]">
+                    Auto-save enabled
+                  </span>
+                </div>
+              </div>
+              <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                <label className="flex items-center gap-3 rounded-2xl border border-black/10 bg-white px-4 py-3 text-xs text-[var(--foreground)]">
+                  <input
+                    type="checkbox"
+                    checked={selectedMember.email_opt_in}
+                    onChange={(event) => handleTogglePreference("email_opt_in", event.target.checked)}
+                    className="h-4 w-4 rounded border-gray-400 text-[var(--accent)]"
+                  />
+                  Email opt-in for confirmations
+                </label>
+                <label className="flex items-center gap-3 rounded-2xl border border-black/10 bg-white px-4 py-3 text-xs text-[var(--foreground)]">
+                  <input
+                    type="checkbox"
+                    checked={selectedMember.sms_opt_in}
+                    onChange={(event) => handleTogglePreference("sms_opt_in", event.target.checked)}
+                    className="h-4 w-4 rounded border-gray-400 text-[var(--accent)]"
+                  />
+                  SMS opt-in for alerts
+                </label>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  onClick={() => handleNoticeSend("ENROLL_CONFIRM", "email")}
+                  disabled={isSendingNotice}
+                  className="rounded-full bg-[var(--accent)] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-white disabled:opacity-60"
+                >
+                  Send Email
+                </button>
+                <button
+                  onClick={() => handleNoticeSend("DOC_RECEIVED", "sms")}
+                  disabled={isSendingNotice}
+                  className="rounded-full border border-black/10 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--ink-muted)] disabled:opacity-60"
+                >
+                  Send SMS
+                </button>
+                {noticeMessage && (
+                  <span className="text-xs text-[var(--accent-2)]">{noticeMessage}</span>
+                )}
+              </div>
+              <div className="mt-4 rounded-2xl border border-black/10 bg-[var(--surface-muted)] p-4">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--ink-muted)]">
+                  Notification Audit
+                </p>
+                {notifications.length === 0 ? (
+                  <p className="mt-2 text-xs text-[var(--ink-muted)]">No notifications sent yet.</p>
+                ) : (
+                  <ul className="mt-2 space-y-2 text-xs text-[var(--foreground)]">
+                    {notifications.slice(0, 4).map((notice) => (
+                      <li key={notice.id} className="flex items-start justify-between gap-2">
+                        <div>
+                          <span className="font-semibold">{notice.channel.toUpperCase()}</span>
+                          <span className="text-[var(--ink-muted)]"> — {notice.template_id}</span>
+                          <span className="text-[var(--ink-muted)]"> — {notice.status}</span>
+                        </div>
+                        <span className="text-[10px] text-[var(--ink-muted)]">
+                          {new Date(notice.created_at).toLocaleString()}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="mt-6 grid gap-4 lg:grid-cols-2">
             <Input label="First Name" value={form.first_name} onChange={(v) => handleChange("first_name", v)} />

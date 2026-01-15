@@ -16,6 +16,8 @@ from .schemas import (
     PlanRead,
     MemberPlanRead,
     DocumentRead,
+    NotificationRequest,
+    NotificationAuditRead,
 )
 from .crud import (
     create_member,
@@ -35,6 +37,8 @@ from .crud import (
     get_member_plan,
     add_document,
     list_documents,
+    add_notification_audit,
+    list_notifications,
 )
 
 app = FastAPI(title="Member Enrollment API")
@@ -53,6 +57,19 @@ def on_startup() -> None:
     init_db()
     with Session(engine) as session:
         seed_plans(session)
+
+
+def render_template(template_id: str, variables: dict[str, str]) -> str:
+    templates = {
+        "ENROLL_CONFIRM": "Hello {first_name}, your enrollment draft is saved.",
+        "PLAN_SELECTED": "Hello {first_name}, your plan {plan_name} is selected.",
+        "DOC_RECEIVED": "Hello {first_name}, we received your document {filename}.",
+    }
+    template = templates.get(template_id, "Hello {first_name}, notification sent.")
+    try:
+        return template.format(**variables)
+    except Exception:
+        return template
 
 
 def to_read(member) -> MemberRead:
@@ -79,6 +96,8 @@ def to_read(member) -> MemberRead:
         eligibility_attempts=member.eligibility_attempts,
         eligibility_last_checked=member.eligibility_last_checked.isoformat() if member.eligibility_last_checked else None,
         eligibility_notes=member.eligibility_notes,
+        email_opt_in=member.email_opt_in,
+        sms_opt_in=member.sms_opt_in,
         created_at=member.created_at.isoformat(),
         updated_at=member.updated_at.isoformat()
     )
@@ -313,4 +332,56 @@ def list_documents_api(member_id: str):
                 created_at=doc.created_at.isoformat(),
             )
             for doc in docs
+        ]
+
+
+@app.post("/members/{member_id}/notifications", response_model=NotificationAuditRead)
+def notify_member_api(member_id: str, payload: NotificationRequest):
+    with Session(engine) as session:
+        member = get_member(session, member_id)
+        if not member:
+            raise HTTPException(status_code=404, detail="Member not found")
+        channel = payload.channel.lower()
+        if channel == "email" and not member.email_opt_in:
+            raise HTTPException(status_code=400, detail="Email opt-in is required")
+        if channel == "sms" and not member.sms_opt_in:
+            raise HTTPException(status_code=400, detail="SMS opt-in is required")
+        message = render_template(payload.template_id, payload.variables)
+        audit = add_notification_audit(
+            session,
+            member,
+            channel=channel,
+            template_id=payload.template_id,
+            status="SENT",
+            message=message,
+        )
+        return NotificationAuditRead(
+            id=audit.id,
+            member_id=audit.member_id,
+            channel=audit.channel,
+            template_id=audit.template_id,
+            status=audit.status,
+            message=audit.message,
+            created_at=audit.created_at.isoformat(),
+        )
+
+
+@app.get("/members/{member_id}/notifications", response_model=list[NotificationAuditRead])
+def list_notifications_api(member_id: str):
+    with Session(engine) as session:
+        member = get_member(session, member_id)
+        if not member:
+            raise HTTPException(status_code=404, detail="Member not found")
+        audits = list_notifications(session, member_id)
+        return [
+            NotificationAuditRead(
+                id=audit.id,
+                member_id=audit.member_id,
+                channel=audit.channel,
+                template_id=audit.template_id,
+                status=audit.status,
+                message=audit.message,
+                created_at=audit.created_at.isoformat(),
+            )
+            for audit in audits
         ]

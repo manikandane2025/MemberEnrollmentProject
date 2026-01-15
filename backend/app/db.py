@@ -35,6 +35,8 @@ def run_migrations() -> None:
         "eligibility_attempts": "INTEGER DEFAULT 0",
         "eligibility_last_checked": "TEXT",
         "eligibility_notes": "TEXT",
+        "email_opt_in": "INTEGER DEFAULT 0",
+        "sms_opt_in": "INTEGER DEFAULT 0",
     }
 
     for column, col_type in member_columns.items():
@@ -108,6 +110,21 @@ def run_migrations() -> None:
                 content_type TEXT,
                 size_bytes INTEGER,
                 stored_path TEXT,
+                created_at TEXT
+            )
+            """
+        )
+
+    if not table_exists(cursor, "notificationaudit"):
+        cursor.execute(
+            """
+            CREATE TABLE notificationaudit (
+                id TEXT PRIMARY KEY,
+                member_id TEXT,
+                channel TEXT,
+                template_id TEXT,
+                status TEXT,
+                message TEXT,
                 created_at TEXT
             )
             """

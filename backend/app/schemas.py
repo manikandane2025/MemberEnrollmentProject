@@ -29,6 +29,8 @@ class MemberUpdate(BaseModel):
     state: Optional[str] = None
     zip_code: Optional[str] = None
     status: Optional[str] = None
+    email_opt_in: Optional[bool] = None
+    sms_opt_in: Optional[bool] = None
 
 
 class MemberRead(BaseModel):
@@ -54,6 +56,8 @@ class MemberRead(BaseModel):
     eligibility_attempts: int
     eligibility_last_checked: Optional[str]
     eligibility_notes: Optional[str]
+    email_opt_in: bool
+    sms_opt_in: bool
     created_at: str
     updated_at: str
 
@@ -124,4 +128,20 @@ class DocumentRead(BaseModel):
     filename: str
     content_type: str
     size_bytes: int
+    created_at: str
+
+
+class NotificationRequest(BaseModel):
+    channel: str
+    template_id: str
+    variables: dict[str, str] = {}
+
+
+class NotificationAuditRead(BaseModel):
+    id: str
+    member_id: str
+    channel: str
+    template_id: str
+    status: str
+    message: str
     created_at: str

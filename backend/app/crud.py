@@ -1,6 +1,6 @@
 from datetime import datetime
 from sqlmodel import Session, select
-from .models import Member, IdentityAudit, EligibilityAudit, Plan, MemberPlan, Document
+from .models import Member, IdentityAudit, EligibilityAudit, Plan, MemberPlan, Document, NotificationAudit
 from .schemas import MemberCreate, MemberUpdate, PlanCreate
 
 
@@ -256,4 +256,30 @@ def add_document(
 
 def list_documents(session: Session, member_id: str) -> list[Document]:
     statement = select(Document).where(Document.member_id == member_id).order_by(Document.created_at.desc())
+    return list(session.exec(statement).all())
+
+
+def add_notification_audit(
+    session: Session,
+    member: Member,
+    channel: str,
+    template_id: str,
+    status: str,
+    message: str
+) -> NotificationAudit:
+    audit = NotificationAudit(
+        member_id=member.id,
+        channel=channel,
+        template_id=template_id,
+        status=status,
+        message=message,
+    )
+    session.add(audit)
+    session.commit()
+    session.refresh(audit)
+    return audit
+
+
+def list_notifications(session: Session, member_id: str) -> list[NotificationAudit]:
+    statement = select(NotificationAudit).where(NotificationAudit.member_id == member_id).order_by(NotificationAudit.created_at.desc())
     return list(session.exec(statement).all())
