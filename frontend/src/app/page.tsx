@@ -529,6 +529,7 @@ export default function Home() {
             <h2 className="text-sm font-semibold text-[var(--foreground)]">Member Drafts</h2>
             <button
               onClick={handleNew}
+              data-testid="member-new"
               className="rounded-full border border-[var(--accent)]/40 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-[var(--accent)]"
             >
               New
@@ -543,6 +544,7 @@ export default function Home() {
               <button
                 key={member.id}
                 onClick={() => handleSelect(member)}
+                data-testid={`member-draft-${member.id}`}
                 className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
                   selectedId === member.id
                     ? "border-[var(--accent)] bg-[var(--surface-muted)]"
@@ -605,6 +607,7 @@ export default function Home() {
                   <button
                     onClick={handleIdentityCheck}
                     disabled={isCheckingIdentity}
+                    data-testid="identity-check"
                     className="rounded-full border border-[var(--accent)]/40 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--accent)] disabled:opacity-60"
                   >
                     {isCheckingIdentity ? "Checking..." : "Run Identity Check"}
@@ -666,6 +669,7 @@ export default function Home() {
                   <button
                     onClick={handleEligibilityCheck}
                     disabled={isCheckingEligibility}
+                    data-testid="eligibility-check"
                     className="rounded-full border border-[var(--accent)]/40 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--accent)] disabled:opacity-60"
                   >
                     {isCheckingEligibility ? "Checking..." : "Run Eligibility Check"}
@@ -714,6 +718,7 @@ export default function Home() {
                   <button
                     key={tier}
                     onClick={() => setPlanFilter(tier)}
+                    data-testid={`plan-filter-${tier}`}
                     className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] ${
                       planFilter === tier
                         ? "bg-[var(--accent)] text-white"
@@ -766,12 +771,14 @@ export default function Home() {
                     <button
                       onClick={() => handlePlanSelect(plan.id)}
                       disabled={!selectedMember}
+                      data-testid={`plan-select-${plan.id}`}
                       className="rounded-full bg-[var(--accent)] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-white disabled:opacity-60"
                     >
                       Select Plan
                     </button>
                     <button
                       onClick={() => toggleCompare(plan.id)}
+                      data-testid={`plan-compare-${plan.id}`}
                       className={`rounded-full border px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] ${
                         comparePlanIds.includes(plan.id)
                           ? "border-[var(--accent)] text-[var(--accent)]"
@@ -817,9 +824,13 @@ export default function Home() {
                 </p>
                 <h3 className="text-lg font-semibold text-[var(--foreground)]">Member Documents</h3>
               </div>
-              <label className="rounded-full border border-black/10 bg-white px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--ink-muted)]">
+              <label
+                data-testid="document-upload"
+                className="rounded-full border border-black/10 bg-white px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--ink-muted)]"
+              >
                 <input
                   type="file"
+                  data-testid="document-upload-input"
                   className="hidden"
                   disabled={!selectedMember || isUploading}
                   onChange={(event) => {
@@ -885,6 +896,7 @@ export default function Home() {
                     type="checkbox"
                     checked={selectedMember.email_opt_in}
                     onChange={(event) => handleTogglePreference("email_opt_in", event.target.checked)}
+                    data-testid="email-opt-in"
                     className="h-4 w-4 rounded border-gray-400 text-[var(--accent)]"
                   />
                   Email opt-in for confirmations
@@ -894,6 +906,7 @@ export default function Home() {
                     type="checkbox"
                     checked={selectedMember.sms_opt_in}
                     onChange={(event) => handleTogglePreference("sms_opt_in", event.target.checked)}
+                    data-testid="sms-opt-in"
                     className="h-4 w-4 rounded border-gray-400 text-[var(--accent)]"
                   />
                   SMS opt-in for alerts
@@ -903,6 +916,7 @@ export default function Home() {
                 <button
                   onClick={() => handleNoticeSend("ENROLL_CONFIRM", "email")}
                   disabled={isSendingNotice}
+                  data-testid="send-email"
                   className="rounded-full bg-[var(--accent)] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-white disabled:opacity-60"
                 >
                   Send Email
@@ -910,6 +924,7 @@ export default function Home() {
                 <button
                   onClick={() => handleNoticeSend("DOC_RECEIVED", "sms")}
                   disabled={isSendingNotice}
+                  data-testid="send-sms"
                   className="rounded-full border border-black/10 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--ink-muted)] disabled:opacity-60"
                 >
                   Send SMS
@@ -964,6 +979,7 @@ export default function Home() {
             <button
               onClick={handleSave}
               disabled={isSaving}
+              data-testid={selectedMember ? "member-update" : "member-save"}
               className="rounded-full bg-[var(--accent)] px-5 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-lg shadow-[rgba(15,118,110,0.3)] disabled:opacity-60"
             >
               {selectedMember ? "Update Draft" : "Save Draft"}
@@ -972,6 +988,7 @@ export default function Home() {
               <button
                 onClick={handleDelete}
                 disabled={isSaving}
+                data-testid="member-delete"
                 className="rounded-full border border-red-200 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-red-600 disabled:opacity-60"
               >
                 Delete Member
@@ -979,6 +996,7 @@ export default function Home() {
             )}
             <button
               onClick={handleNew}
+              data-testid="member-clear"
               className="rounded-full border border-black/10 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]"
             >
               Clear Form
@@ -1001,13 +1019,21 @@ function Input({
   onChange: (value: string) => void;
   placeholder?: string;
 }) {
+  const testId = label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
   return (
-    <label className="flex flex-col gap-2 text-xs text-[var(--ink-muted)]">
+    <label
+      data-testid={`label-${testId}`}
+      className="flex flex-col gap-2 text-xs text-[var(--ink-muted)]"
+    >
       <span className="uppercase tracking-[0.2em] text-[10px]">{label}</span>
       <input
         value={value}
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
+        data-testid={`input-${testId}`}
         className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-[var(--ring)]"
       />
     </label>
