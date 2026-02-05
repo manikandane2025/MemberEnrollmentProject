@@ -12,4 +12,4 @@ Use this folder to run sprint-wise demos by checking out sprint tags/branches an
 - Use `sprint-XX` tags or `sprint/SXX` branches.
 - Keep the repo clean before switching refs.
 - Backend runs on port 8001, frontend on port 3001 by default.
-- The script sets `NEXT_PUBLIC_API_BASE=http://localhost:8001` for the frontend.
+- The script sets `NEXT_PUBLIC_API_BASE=http://localhost:8001` for the frontend. for the frontend.
