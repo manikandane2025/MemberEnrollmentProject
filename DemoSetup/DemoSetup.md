@@ -11,4 +11,4 @@ Use this folder to run sprint-wise demos by checking out sprint tags/branches an
 ## Notes
 - Use `sprint-XX` tags or `sprint/SXX` branches.
 - Keep the repo clean before switching refs.
-- Backend runs on port 8000, frontend on port 3002 by default.
+- Backend runs on port 8001, frontend on port 3001 by default.
