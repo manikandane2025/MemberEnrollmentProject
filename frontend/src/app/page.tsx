@@ -628,7 +628,7 @@ export default function Home() {
                         <li key={audit.id} className="flex items-start justify-between gap-2">
                           <div>
                             <span className="font-semibold">{audit.result}</span>
-                            <span className="text-[var(--ink-muted)]"> GÇö {audit.reason}</span>
+                            <span className="text-[var(--ink-muted)]"> GÃƒÂ¶ {audit.reason}</span>
                           </div>
                           <span className="text-[10px] text-[var(--ink-muted)]">
                             {new Date(audit.created_at).toLocaleString()}
@@ -650,7 +650,7 @@ export default function Home() {
                       {selectedMember.eligibility_status}
                     </div>
                     <div className="text-xs text-[var(--ink-muted)]">
-                      Code: {selectedMember.eligibility_code || "GÇö"}
+                      Code: {selectedMember.eligibility_code || "GÃƒÂ¶"}
                     </div>
                     <div className="text-xs text-[var(--ink-muted)]">
                       Attempts: {selectedMember.eligibility_attempts}
@@ -690,8 +690,8 @@ export default function Home() {
                         <li key={audit.id} className="flex items-start justify-between gap-2">
                           <div>
                             <span className="font-semibold">{audit.result}</span>
-                            <span className="text-[var(--ink-muted)]"> GÇö {audit.code}</span>
-                            <span className="text-[var(--ink-muted)]"> GÇö {audit.reason}</span>
+                            <span className="text-[var(--ink-muted)]"> GÃƒÂ¶ {audit.code}</span>
+                            <span className="text-[var(--ink-muted)]"> GÃƒÂ¶ {audit.reason}</span>
                           </div>
                           <span className="text-[10px] text-[var(--ink-muted)]">
                             {new Date(audit.created_at).toLocaleString()}
@@ -749,7 +749,7 @@ export default function Home() {
                     <div>
                       <p className="text-sm font-semibold text-[var(--foreground)]">{plan.name}</p>
                       <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--ink-muted)]">
-                        {plan.tier} GÇó {plan.network}
+                        {plan.tier} GÃ‡Ã³ {plan.network}
                       </p>
                     </div>
                     <span className="rounded-full bg-[var(--accent)]/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--accent)]">
@@ -802,7 +802,7 @@ export default function Home() {
                     <div key={plan.id} className="rounded-xl border border-black/10 bg-white/70 p-4">
                       <p className="text-sm font-semibold text-[var(--foreground)]">{plan.name}</p>
                       <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--ink-muted)]">
-                        {plan.tier} GÇó {plan.network}
+                        {plan.tier} GÃ‡Ã³ {plan.network}
                       </p>
                       <ul className="mt-3 space-y-2 text-xs text-[var(--foreground)]">
                         <li>Premium: ${plan.premium.toFixed(0)}/mo</li>
@@ -862,7 +862,7 @@ export default function Home() {
                       <div>
                         <p className="font-semibold text-[var(--foreground)]">{doc.filename}</p>
                         <p className="text-[var(--ink-muted)]">
-                          {doc.content_type} GÇó {(doc.size_bytes / 1024).toFixed(1)} KB
+                          {doc.content_type} GÃ‡Ã³ {(doc.size_bytes / 1024).toFixed(1)} KB
                         </p>
                       </div>
                       <span className="text-[10px] text-[var(--ink-muted)]">
@@ -945,8 +945,8 @@ export default function Home() {
                       <li key={notice.id} className="flex items-start justify-between gap-2">
                         <div>
                           <span className="font-semibold">{notice.channel.toUpperCase()}</span>
-                          <span className="text-[var(--ink-muted)]"> GÇö {notice.template_id}</span>
-                          <span className="text-[var(--ink-muted)]"> GÇö {notice.status}</span>
+                          <span className="text-[var(--ink-muted)]"> GÃƒÂ¶ {notice.template_id}</span>
+                          <span className="text-[var(--ink-muted)]"> GÃƒÂ¶ {notice.status}</span>
                         </div>
                         <span className="text-[10px] text-[var(--ink-muted)]">
                           {new Date(notice.created_at).toLocaleString()}
