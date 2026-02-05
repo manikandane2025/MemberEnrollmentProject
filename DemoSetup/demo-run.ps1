@@ -57,13 +57,13 @@ if ($Ref -ne "") {
 Write-Host ""
 if ($StartServers) {
     Write-Host "Starting backend and frontend in new terminals..."
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd `"$RepoPath\\backend`"; python -m uvicorn app.main:app --reload --port 8005"
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd `"$RepoPath\\frontend`"; `$env:PORT=3005; `$env:NEXT_PUBLIC_API_BASE=`"http://localhost:8005`"; npm run dev"
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd `"$RepoPath\\backend`"; python -m uvicorn app.main:app --reload --port 8001"
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd `"$RepoPath\\frontend`"; `$env:PORT=3001; `$env:NEXT_PUBLIC_API_BASE=`"http://localhost:8001`"; npm run dev"
     Write-Host "Servers launched."
 } else {
     Write-Host "Next: start backend and frontend in separate terminals."
-    Write-Host "Backend:  cd backend; python -m uvicorn app.main:app --reload --port 8005"
-    Write-Host "Frontend: cd frontend; `$env:PORT=3005; `$env:NEXT_PUBLIC_API_BASE=`"http://localhost:8005`"; npm run dev"
+    Write-Host "Backend:  cd backend; python -m uvicorn app.main:app --reload --port 8001"
+    Write-Host "Frontend: cd frontend; `$env:PORT=3001; `$env:NEXT_PUBLIC_API_BASE=`"http://localhost:8001`"; npm run dev"
     Write-Host "Tip: use -StartServers to auto-launch."
 }
 
