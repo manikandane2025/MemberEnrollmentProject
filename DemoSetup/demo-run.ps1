@@ -15,7 +15,18 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
     exit 1
 }
 
-Set-Location $RepoPath
+$scriptRoot = $PSScriptRoot
+$defaultRepoRoot = Resolve-Path (Join-Path $scriptRoot "..")
+if ($RepoPath -eq "." -or $RepoPath -eq "") {
+    $RepoPath = $defaultRepoRoot
+}
+$resolvedRepoPath = Resolve-Path $RepoPath
+if (-not ($resolvedRepoPath.Path -like ($defaultRepoRoot.Path + "*"))) {
+    Write-Host "RepoPath must be within $defaultRepoRoot"
+    exit 1
+}
+
+Set-Location $resolvedRepoPath
 
 if (-not (Test-Path ".git")) {
     Write-Host "No .git directory found in $RepoPath. Provide a valid repo path."
