@@ -1,4 +1,4 @@
-﻿param(
+param(
     [Parameter(Mandatory=$false)]
     [string]$Ref = "",
     [Parameter(Mandatory=$false)]
@@ -66,4 +66,3 @@ if ($StartServers) {
     Write-Host "Frontend: cd frontend; `$env:PORT=3001; `$env:NEXT_PUBLIC_API_BASE=`"http://localhost:8001`"; npm run dev"
     Write-Host "Tip: use -StartServers to auto-launch."
 }
-
