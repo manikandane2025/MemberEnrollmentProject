@@ -79,6 +79,15 @@ Write-Host ""
 if ($StartServers) {
     Write-Host "Starting backend and frontend in new terminals..."
     Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd `"$RepoPath\\backend`"; python -m uvicorn app.main:app --reload --port 8001"
+    $frontendEnvPath = Join-Path $RepoPath "frontend\.env.local"
+    $envLines = @(
+        "NEXT_PUBLIC_API_BASE=http://localhost:8001"
+    )
+    if ($sprintLabel -ne "") {
+        $envLines += "NEXT_PUBLIC_SPRINT_LABEL=$sprintLabel"
+    }
+    Set-Content -Path $frontendEnvPath -Value ($envLines -join "`n") -Encoding UTF8
+    Write-Host "Wrote frontend .env.local for demo."
     if ($sprintLabel -ne "") {
         Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd `"$RepoPath\\frontend`"; `$env:PORT=3001; `$env:NEXT_PUBLIC_API_BASE='http://localhost:8001'; `$env:NEXT_PUBLIC_SPRINT_LABEL=`"$sprintLabel`"; npm run dev"
     } else {
