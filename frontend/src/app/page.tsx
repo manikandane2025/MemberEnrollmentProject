@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8001";
-const SPRINT_LABEL = "Sprint-05";
+const SPRINT_LABEL = process.env.NEXT_PUBLIC_SPRINT_LABEL || "Sprint-06";
 const SPRINT_TAGLINE =
   "Document uploads with validation, metadata capture, and member-linked storage.";
 
