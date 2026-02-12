@@ -25,6 +25,7 @@ if (-not ($resolvedRepoPath.Path -like ($defaultRepoRoot.Path + "*"))) {
     Write-Host "RepoPath must be within $defaultRepoRoot"
     exit 1
 }
+$RepoPath = $resolvedRepoPath.Path
 
 Set-Location $resolvedRepoPath
 
