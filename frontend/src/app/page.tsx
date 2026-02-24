@@ -441,7 +441,7 @@ export default function Home() {
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-        <aside className="rounded-3xl bg-[var(--surface)] p-5 shadow-[0_20px_60px_rgba(15,118,110,0.08)]">
+        <aside className="rounded-3xl bg-[var(--surface)] p-5 shadow-[0_20px_60px_rgba(15,118,110,0.08)] max-h-[calc(100vh-8rem)] overflow-y-auto">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-[var(--foreground)]">Member Drafts</h2>
             <button
